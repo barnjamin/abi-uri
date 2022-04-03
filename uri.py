@@ -34,16 +34,29 @@ class URIMethodArg:
 class ABIUri:
 
     app_id: int
-    method: str
+    method: abi.Method
     args: List[URIMethodArg]
 
-    def __init__(self, id, sel, args):
+    def __init__(self, id, meth, args):
         self.app_id = id
-        self.method = sel
+        self.method = meth
         self.args = args
 
-    def get_method(self):
-        return abi.Method(self.method, [a.type for a in self.args], abi.Returns("void"))
+    @staticmethod
+    def decode(uri: str):
+        parsed = urlparse(uri)
+
+        app_id = parsed.netloc
+
+        path_chunks = parsed.path.split("/")[1:]
+        method_name = path_chunks[0]
+
+        query_params = parse_qs(parsed.query)
+        args = [URIMethodArg(k, val) for k, v in query_params.items() for val in v]
+
+        method = abi.Method(method_name, [a.type for a in args], abi.Returns("void"))
+
+        return ABIUri(int(app_id), method, args)
 
     def generate_transaction(self, sp, sender, signer):
         comp = atc.AtomicTransactionComposer()
@@ -67,8 +80,8 @@ class ABIUri:
                 values.append(a.value)
 
         comp.add_method_call(
-            app_id,
-            self.get_method(),
+            self.app_id,
+            self.method,
             sender,
             sp,
             signer,
@@ -81,10 +94,6 @@ class ABIUri:
         return comp.build_group()[0].txn
 
 
-(sk, pk) = generate_account()
-signer = atc.AccountTransactionSigner(sk)
-sp = transaction.SuggestedParams(0, 0, 0, "")
-
 if __name__ == "__main__":
     uris = [
         "algorand-abi://123/repeat_message/?message={string:hello}&times={uint16:3}",
@@ -92,17 +101,12 @@ if __name__ == "__main__":
     ]
 
     for uri in uris:
-        parsed = urlparse(uri)
+        decoded_uri = ABIUri.decode(uri)
 
-        app_id = parsed.netloc
+        (sk, pk) = generate_account()
+        signer = atc.AccountTransactionSigner(sk)
+        sp = transaction.SuggestedParams(0, 0, 0, "")
 
-        path_chunks = parsed.path.split("/")[1:]
-        method_name = path_chunks[0]
-
-        query_params = parse_qs(parsed.query)
-        args = [URIMethodArg(k, val) for k, v in query_params.items() for val in v]
-
-        decoded_uri = ABIUri(int(app_id), method_name, args)
         txn = decoded_uri.generate_transaction(sp, pk, signer)
 
         print(txn.__dict__)
