@@ -87,8 +87,8 @@ sp = transaction.SuggestedParams(0, 0, 0, "")
 
 if __name__ == "__main__":
     uris = [
-        "algorand-abi://123/deadbeef/?message={string:hello}&times={uint16:3}",
-        "algorand-abi://123/deadbeef/?drop_asset_id={asset:456}",
+        "algorand-abi://123/repeat_message/?message={string:hello}&times={uint16:3}",
+        "algorand-abi://123//drop_asset?id={asset:456}",
     ]
 
     for uri in uris:
