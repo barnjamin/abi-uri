@@ -4,6 +4,7 @@ from algosdk.future import transaction
 from algosdk import abi, atomic_transaction_composer as atc
 from typing import List, Union
 from urllib.parse import urlparse, parse_qsl, parse_qs
+import json
 
 
 class URIMethodArg:
@@ -93,20 +94,46 @@ class ABIUri:
 
         return comp.build_group()[0].txn
 
+    def encode(self):
+        return f"algorand-abi://{self.app_id}/{self.method.name}?" + "&".join(
+            [f"{arg.name}={{{arg.type.type}:{arg.value}}}" for arg in self.args]
+        )
+
+
+class URITransactionGroup():
+    version: string
+    transactions: List[ABIUri]
+
+    def __init__(self, version, transactions):
+        self.version = version
+        self.transactions = transactions
+
+    def encode(self):
+        return json.dumps({
+            "version":self.version,
+            "transactions":[t.encode() for t in self.transactions]
+        })
+
+
 
 if __name__ == "__main__":
+
+
     uris = [
-        "algorand-abi://123/repeat_message/?message={string:hello}&times={uint16:3}",
-        "algorand-abi://123//drop_asset?id={asset:456}",
+        "algorand-abi://123/repeat_message?message={string:hello}&times={uint16:3}",
+        "algorand-abi://123/sell?id={asset:456}",
     ]
 
+    txn_uris = []
     for uri in uris:
         decoded_uri = ABIUri.decode(uri)
 
         (sk, pk) = generate_account()
         signer = atc.AccountTransactionSigner(sk)
         sp = transaction.SuggestedParams(0, 0, 0, "")
-
         txn = decoded_uri.generate_transaction(sp, pk, signer)
 
-        print(txn.__dict__)
+        txn_uris.append(decoded_uri)
+
+    utg = URITransactionGroup("1.0", txn_uris)
+    print(utg.encode())
