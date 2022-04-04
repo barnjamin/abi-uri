@@ -22,7 +22,7 @@ class URIEncodedTransaction(ABC):
         pass
 
 
-class URIMethodArg:
+class ABIUriMethodArg:
 
     type: abi.Argument
     name: string
@@ -31,7 +31,7 @@ class URIMethodArg:
     def __init__(self, name: str, val: str):
         self.name = name
 
-        # should only be 2 bits, type && value
+        # should only be 2 chunks, type : value
         (t, v) = val.strip("{}").split(":")
 
         self.type = abi.Argument(t)
@@ -51,7 +51,7 @@ class ABIUri(URIEncodedTransaction):
 
     app_id: int
     method: abi.Method
-    args: List[URIMethodArg]
+    args: List[ABIUriMethodArg]
 
     def __init__(self, id, meth, args):
         self.app_id = id
@@ -68,7 +68,7 @@ class ABIUri(URIEncodedTransaction):
         method_name = path_chunks[0]
 
         query_params = parse_qs(parsed.query)
-        args = [URIMethodArg(k, val) for k, v in query_params.items() for val in v]
+        args = [ABIUriMethodArg(k, val) for k, v in query_params.items() for val in v]
 
         method = abi.Method(method_name, [a.type for a in args], abi.Returns("void"))
 
@@ -241,6 +241,7 @@ if __name__ == "__main__":
         (sk, pk) = generate_account()
         sp = transaction.SuggestedParams(0, 0, 0, "")
         txn = decoded_uri.generate_transaction(sp, pk)
+        print(txn.__dict__)
 
         # Re-use the ABIUri to populate a transaction group
         txn_uris.append(decoded_uri)
